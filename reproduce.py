@@ -1,8 +1,10 @@
 """Run separate native-library processes on generated data and check the mechanism."""
 import argparse
+from collections import Counter
 import csv
 from datetime import datetime, timezone
 import hashlib
+from itertools import product
 import json
 import math
 from numbers import Integral, Real
@@ -14,6 +16,7 @@ import time
 
 ROOT=Path(__file__).resolve().parent
 CONDITIONS=('clean','iid','odd_rms_matched','iid_positive_gate')
+SUITE_SEEDS={'full':(11,12,13,14,15),'smoke':(11,)}
 CONTINUOUS_KEYS=(('baseline','clean'),('baseline','iid'),
                  ('child_reeval','clean'),('child_reeval','iid'))
 
@@ -127,26 +130,75 @@ def continuous_checks(rows):
     return checks
 
 
-def verify_results(rows,continuous):
-    """Validate fresh or recorded results without fitting a model."""
+def single_tree_checks(rows,suite):
+    """Require the declared experiment matrix before evaluating its evidence."""
     import numpy as np
+    if suite not in SUITE_SEEDS:
+        raise ValueError(f'Unknown suite: {suite!r}; choose full or smoke')
+    expected=set(product(('baseline','child_reeval'),(0,1),SUITE_SEEDS[suite],CONDITIONS))
     assertions=[]
     def check(name,value):
         assertions.append(dict(check=name,passed=bool(value)))
-    clean=[r for r in rows if r['condition']=='clean']
-    check('XOR has no profitable root in either library',all(r['root_split_feature']=='none' and abs(r['NRMSE_clean']-1)<1e-12 for r in clean if r['a']==0))
-    check('Baseline a=1 uses beta but omits geometry',all(r['root_split_feature']=='beta' and r['geometry_splits']==0 and abs(r['NRMSE_clean']-1/np.sqrt(2))<1e-12 for r in clean if r['a']==1 and r['variant']=='baseline'))
-    check('Patched a=1 restores two geometry splits and zero error',all(r['geometry_splits']==2 and r['NRMSE_clean']<1e-12 for r in clean if r['a']==1 and r['variant']=='child_reeval'))
-    check('IID perturbation repairs the zero-gate baseline',all(r['geometry_splits']>0 and r['NRMSE_clean']<1e-3 for r in rows if r['variant']=='baseline' and r['condition']=='iid'))
-    check('Positive threshold retains the distinction between libraries',all((r['geometry_splits']==0 if r['variant']=='baseline' else r['geometry_splits']==2) for r in rows if r['a']==1 and r['condition']=='iid_positive_gate'))
-    with (ROOT/'expected/archived_single_tree.csv').open(encoding='utf-8-sig',newline='') as stream:
-        reference={(r['variant'],int(r['a']),int(r['seed']),r['condition']):r for r in csv.DictReader(stream)}
-    diffs=[abs(r['NRMSE_clean']-float(reference[(r['variant'],r['a'],r['seed'],r['condition'])]['NRMSE_clean'])) for r in rows]
-    check('Single-tree NRMSE agrees with archived results (absolute tolerance 1e-10)',max(diffs)<1e-10)
+    def integer(value):
+        return isinstance(value,Integral) and not isinstance(value,bool) and value>=0
+    def finite_nonnegative(value):
+        if not isinstance(value,Real) or isinstance(value,bool):
+            return False
+        try:
+            return math.isfinite(value) and value>=0
+        except (OverflowError,ValueError):
+            return False
+    def valid_key(row):
+        return (isinstance(row,dict) and isinstance(row.get('variant'),str)
+                and isinstance(row.get('condition'),str)
+                and integer(row.get('a')) and integer(row.get('seed')))
+    def key(row):
+        return row['variant'],row['a'],row['seed'],row['condition']
+    keys_valid=all(valid_key(r) for r in rows)
+    complete=keys_valid and Counter(key(r) for r in rows)==Counter({k:1 for k in expected})
+    check(f'Single-tree {suite} matrix contains each of {len(expected)} expected keys exactly once',complete)
+    metrics_valid=bool(rows) and all(
+        isinstance(r,dict)
+        and all(finite_nonnegative(r.get(name)) for name in ('NRMSE_clean','root_split_gain'))
+        and all(integer(r.get(name)) for name in ('geometry_splits','beta_splits'))
+        and r.get('root_split_feature') in ('none','beta','z') for r in rows)
+    check('Single-tree errors and gains are finite and nonnegative with integer split counts',metrics_valid)
+    ready=complete and metrics_valid
+    clean=[r for r in rows if r['condition']=='clean'] if ready else []
+    check('XOR has no profitable root in either library',ready and all(r['root_split_feature']=='none' and abs(r['NRMSE_clean']-1)<1e-12 for r in clean if r['a']==0))
+    check('Baseline a=1 uses beta but omits geometry',ready and all(r['root_split_feature']=='beta' and r['geometry_splits']==0 and abs(r['NRMSE_clean']-1/np.sqrt(2))<1e-12 for r in clean if r['a']==1 and r['variant']=='baseline'))
+    check('Patched a=1 restores two geometry splits and zero error',ready and all(r['geometry_splits']==2 and r['NRMSE_clean']<1e-12 for r in clean if r['a']==1 and r['variant']=='child_reeval'))
+    check('IID perturbation repairs the zero-gate baseline',ready and all(r['geometry_splits']>0 and r['NRMSE_clean']<1e-3 for r in rows if r['variant']=='baseline' and r['condition']=='iid'))
+    check('Positive threshold retains the distinction between libraries',ready and all((r['geometry_splits']==0 if r['variant']=='baseline' else r['geometry_splits']==2) for r in rows if r['a']==1 and r['condition']=='iid_positive_gate'))
+    diffs=[]
+    if ready:
+        with (ROOT/'expected/archived_single_tree.csv').open(encoding='utf-8-sig',newline='') as stream:
+            archived=list(csv.DictReader(stream))
+        archive_keys=[(r['variant'],int(r['a']),int(r['seed']),r['condition']) for r in archived]
+        counts=Counter(archive_keys)
+        reference=dict(zip(archive_keys,archived))
+        if all(counts[k]==1 for k in expected):
+            try:
+                reference_errors={k:float(reference[k]['NRMSE_clean']) for k in expected}
+            except (TypeError,ValueError,OverflowError):
+                reference_errors={}
+            if len(reference_errors)==len(expected) and all(finite_nonnegative(v) for v in reference_errors.values()):
+                diffs=[abs(r['NRMSE_clean']-reference_errors[key(r)]) for r in rows]
+    differences_valid=len(diffs)==len(expected) and all(finite_nonnegative(d) for d in diffs)
+    check('Single-tree NRMSE agrees with archived results (absolute tolerance 1e-10)',
+          differences_valid and all(d<1e-10 for d in diffs))
+    # Invalid or incomplete evidence has no comparable maximum, rather than a misleading zero.
+    return assertions,max(diffs) if differences_valid else None,len(expected)
+
+
+def verify_results(rows,continuous,*,suite='full'):
+    """Validate fresh or saved results against the explicitly declared suite."""
+    assertions,max_difference,expected_count=single_tree_checks(rows,suite)
     assertions.extend(continuous_checks(continuous))
     return dict(status='PASS' if all(x['passed'] for x in assertions) else 'FAIL',
+                suite=suite,expected_single_tree_fits=expected_count,
                 assertions=assertions,single_tree_fits=len(rows),continuous_fits=len(continuous),
-                max_archived_NRMSE_difference=max(diffs),continuous_results=continuous,
+                max_archived_NRMSE_difference=max_difference,continuous_results=continuous,
                 real_data_access=False)
 
 
@@ -179,8 +231,8 @@ def controller(args,build):
         rows.extend(block['single_tree']); continuous.extend(block['continuous'])
     for name,data in [('single_tree.csv',rows),('continuous.csv',continuous)]:
         with (out/name).open('w',newline='',encoding='utf-8') as stream:
-            writer=csv.DictWriter(stream,fieldnames=list(data[0])); writer.writeheader(); writer.writerows(data)
-    result=verify_results(rows,continuous)
+            writer=csv.DictWriter(stream,fieldnames=list(data[0]) if data else []); writer.writeheader(); writer.writerows(data)
+    result=verify_results(rows,continuous,suite=args.suite)
     result['results_sha256']=sha(out/'single_tree.csv')
     save(out/'verification.json',result)
     print(json.dumps(result,indent=2))
