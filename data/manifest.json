@@ -1,0 +1,14 @@
+{
+  "source": "datasets.py; function-generated data only",
+  "continuous_train_seed": 20261009,
+  "continuous_validation_seed": 20261010,
+  "continuous_geometries_per_split": 256,
+  "continuous_rows_per_split": 768,
+  "generator_sha256": "431637495ffcafde0beae1071427f34e6bad8c338a0ed2ac75ac47ffb7d9cdde",
+  "files": {
+    "continuous_train.csv": "255c2dc5e6c04343245a1afa6f88d0fd1ff9ab7f230c14082c7c2ee0d664ef8d",
+    "continuous_validation.csv": "f8bcdf66e1308917826d77c888f6738a0eb81fd7175927ccdb685fae3bcd15ca",
+    "four_cells_a0.csv": "06875ded280091e455bd5dc8ac0824213ad4115ddfc423d5f01972b32e43e865",
+    "four_cells_a1.csv": "0946a09e34b306cb1cb44be27f73f30100ff2be4d22ac163ae87885df5882e6c"
+  }
+}

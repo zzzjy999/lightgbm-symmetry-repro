@@ -1,0 +1,30 @@
+{
+  "status": "COMPLETED",
+  "created_utc": "2026-10-09T07:11:47.150550+00:00",
+  "upstream_commit": "d02a01ac6f51d36c9e62388243bcb75c3b1b1774",
+  "patch_sha256": "e23c2b7fbd6b5bf25e1cf9c4cd50e1091b1fd33db1558736392a9bcfb8ebe062",
+  "cmake_version": "cmake version 4.4.3",
+  "compiler_version": "g++.exe (GCC) 14.1.0",
+  "ninja_version": "1.13.2.git.kitware.jobserver-pipe-1",
+  "python": "3.12.13",
+  "dependencies": {
+    "numpy": "2.4.3",
+    "scipy": "1.17.1",
+    "cmake": "4.4.3",
+    "ninja": "1.13.2"
+  },
+  "platform": "Windows x64",
+  "variants": {
+    "baseline": {
+      "library_sha256": "818f423d5e43d7a8b115f276cedc55d2953f5cb500f73826e13bd7c6987ac6ed",
+      "serial_tree_learner_sha256": "7f8d6f55aaf56b79e0d14c25c092305539131220407c505434b30736d9d98822",
+      "cmake_cache_sha256": "a989f07fd612e8ec1921c3cc4db8cb3bba0c141c22e7a3fe13815ce75f8f36c6"
+    },
+    "child_reeval": {
+      "library_sha256": "2abc9ccb202e12070a6ac230002973bec657538cf903af308481a7aed089ac97",
+      "serial_tree_learner_sha256": "eed2bade3101ff3e43e6082277e740360a911d1c0fd6fb208ab761ed7bf442d3",
+      "cmake_cache_sha256": "be9987eaa152e7ed971405ddab59345e5bff8b73251d23d1503963f673b195d9"
+    }
+  },
+  "build_configuration": "../config/build.json"
+}

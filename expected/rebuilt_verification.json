@@ -1,0 +1,76 @@
+{
+  "status": "PASS",
+  "assertions": [
+    {
+      "check": "XOR has no profitable root in either library",
+      "passed": true
+    },
+    {
+      "check": "Baseline a=1 uses beta but omits geometry",
+      "passed": true
+    },
+    {
+      "check": "Patched a=1 restores two geometry splits and zero error",
+      "passed": true
+    },
+    {
+      "check": "IID perturbation repairs the zero-gate baseline",
+      "passed": true
+    },
+    {
+      "check": "Positive threshold retains the distinction between libraries",
+      "passed": true
+    },
+    {
+      "check": "Single-tree NRMSE agrees with archived results (absolute tolerance 1e-10)",
+      "passed": true
+    },
+    {
+      "check": "New continuous data reproduce geometry omission",
+      "passed": true
+    },
+    {
+      "check": "Both interventions recover continuous-data geometry splits",
+      "passed": true
+    },
+    {
+      "check": "Both interventions reduce error on independent synthetic geometries",
+      "passed": true
+    }
+  ],
+  "single_tree_fits": 80,
+  "continuous_fits": 4,
+  "max_archived_NRMSE_difference": 0.0,
+  "continuous_results": [
+    {
+      "variant": "baseline",
+      "condition": "clean",
+      "validation_NRMSE": 0.396412264643317,
+      "geometry_splits": 0,
+      "fit_seconds": 0.045980899943970144
+    },
+    {
+      "variant": "baseline",
+      "condition": "iid",
+      "validation_NRMSE": 0.10715547042231405,
+      "geometry_splits": 8160,
+      "fit_seconds": 0.35540879995096475
+    },
+    {
+      "variant": "child_reeval",
+      "condition": "clean",
+      "validation_NRMSE": 0.10806480639651729,
+      "geometry_splits": 8153,
+      "fit_seconds": 0.3713339000241831
+    },
+    {
+      "variant": "child_reeval",
+      "condition": "iid",
+      "validation_NRMSE": 0.10715547042231405,
+      "geometry_splits": 8160,
+      "fit_seconds": 0.3593668000539765
+    }
+  ],
+  "results_sha256": "48fdc1699a170582082d226eaff89901ca413c45fa604a7f999c02ce2ef45f16",
+  "real_data_access": false
+}

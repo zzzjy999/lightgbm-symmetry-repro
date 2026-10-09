@@ -1,0 +1,34 @@
+{
+  "upstream_tag": "v4.6.0",
+  "upstream_commit": "d02a01ac6f51d36c9e62388243bcb75c3b1b1774",
+  "platform": "Windows x64",
+  "compiler": "GNU GCC 14.1.0 (MinGW)",
+  "cmake": "4.4.3",
+  "generator": "Ninja",
+  "runtime_threads": 1,
+  "cache_path_normalization": "Only machine-specific path prefixes were replaced by named placeholders; all other cache values are retained.",
+  "original_patch_sha256": "e23c2b7fbd6b5bf25e1cf9c4cd50e1091b1fd33db1558736392a9bcfb8ebe062",
+  "original_archived_single_tree_sha256": "25b5c5649e856a50f3eb97bbe17fd178f40b075c619607a189f3a41b71b440f2",
+  "original_variants": {
+    "baseline": {
+      "original_cache_sha256": "f4ed7d59628544964633e462b3b407b4f66b2ec94dd13f7c04610fa2a08e7da4",
+      "published_cache_sha256": "6113fec93cd306042288a40273cd55d06a9374e64ddd8a5fd216053c2f024e42",
+      "original_native_library_sha256": "3685b52642cbcfe54ed670da1875ef463e148104b2fcae84293240a57dc8d56f",
+      "cxx_flags": "-fopenmp -pthread -Wextra -Wall -Wno-ignored-attributes -Wno-unknown-pragmas -Wno-return-type -Wno-stringop-overflow -O3 -static-libstdc++ -fPIC -funroll-loops -O3 -DNDEBUG -std=gnu++11",
+      "cxx_defines": "-DEIGEN_DONT_PARALLELIZE -DEIGEN_MPL2_ONLY -DMM_MALLOC -DMM_PREFETCH -DUSE_SOCKET -DWIN_HAS_INET_PTON"
+    },
+    "child_reeval": {
+      "original_cache_sha256": "d878d7984ee6126579610312efbc9a60ffc823d9dcaa62f64a254deef9af9b61",
+      "published_cache_sha256": "ba43ed991a228557b491bfd4fb2654e7019edb57a107b5a41476e3c471419231",
+      "original_native_library_sha256": "cb9da6c2af736defb48721faf9777d4e498c201fdc21b78bb64463f8381cc0ac",
+      "cxx_flags": "-fopenmp -pthread -Wextra -Wall -Wno-ignored-attributes -Wno-unknown-pragmas -Wno-return-type -Wno-stringop-overflow -O3 -static-libstdc++ -fPIC -funroll-loops -O3 -DNDEBUG -std=gnu++11",
+      "cxx_defines": "-DEIGEN_DONT_PARALLELIZE -DEIGEN_MPL2_ONLY -DMM_MALLOC -DMM_PREFETCH -DUSE_SOCKET -DWIN_HAS_INET_PTON"
+    }
+  },
+  "submodules": {
+    "external_libs/compute": "36350b7de849300bd3d72a05d8bf890ca405a014",
+    "external_libs/eigen": "3147391d946bb4b6c68edd901f2add6ac1f31f8c",
+    "external_libs/fast_double_parser": "252029ddac664370bdda3f0761675785d92a1573",
+    "external_libs/fmt": "8303d140a1a11f19b982a9f664bbe59a1ccda3f4"
+  }
+}

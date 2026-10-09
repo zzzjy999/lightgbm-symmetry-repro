@@ -1,0 +1,46 @@
+{
+  "created_utc": "2026-10-09T07:15:08.932308+00:00",
+  "suite": "full",
+  "script_sha256": "16fa8ad39be2a6eedb28a3c6cff9cee48ca4c39d1e20af8e79263e22d0f66a6e",
+  "datasets_sha256": "431637495ffcafde0beae1071427f34e6bad8c338a0ed2ac75ac47ffb7d9cdde",
+  "single_tree_parameters": {
+    "objective": "regression",
+    "metric": "None",
+    "verbosity": -1,
+    "num_threads": 1,
+    "deterministic": true,
+    "force_col_wise": true,
+    "boost_from_average": false,
+    "learning_rate": 1.0,
+    "num_leaves": 4,
+    "max_depth": 2,
+    "min_data_in_leaf": 1,
+    "min_sum_hessian_in_leaf": 0.0,
+    "lambda_l1": 0.0,
+    "lambda_l2": 0.0,
+    "min_gain_to_split": 0.0,
+    "bagging_fraction": 1.0,
+    "bagging_freq": 0,
+    "feature_fraction": 1.0,
+    "feature_fraction_bynode": 1.0,
+    "feature_pre_filter": false,
+    "seed": 20260917,
+    "max_bin": 15
+  },
+  "noise_seeds": [
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "data": "Generated from functions; no aerodynamic database access.",
+  "continuous_train_seed": 20261009,
+  "continuous_validation_seed": 20261010,
+  "single_tree_endpoint": "NRMSE against clean labels over the balanced four cells (structural fit).",
+  "continuous_endpoint": "Projected NRMSE on independently sampled synthetic geometries.",
+  "library_sha256": {
+    "baseline": "818f423d5e43d7a8b115f276cedc55d2953f5cb500f73826e13bd7c6987ac6ed",
+    "child_reeval": "2abc9ccb202e12070a6ac230002973bec657538cf903af308481a7aed089ac97"
+  }
+}
