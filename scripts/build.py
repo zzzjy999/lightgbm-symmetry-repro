@@ -12,16 +12,47 @@ import tarfile
 import time
 
 ROOT=Path(__file__).resolve().parents[1]
+COMMAND_LOG=None
 
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def call(command, cwd=None, binary=False):
-    result=subprocess.run(list(map(str,command)),cwd=cwd,check=True,capture_output=True,
-                          text=not binary,timeout=1800)
-    return result.stdout if binary else result.stdout.strip()
+def call(command, cwd=None, binary=False, log_path=None, timeout=1800):
+    """Save both output streams before propagating command failures or timeouts."""
+    command=list(map(str,command))
+    paths=list(dict.fromkeys(Path(p) for p in (COMMAND_LOG,log_path) if p is not None))
+    def as_bytes(value):
+        return value.encode('utf-8') if isinstance(value,str) else value or b''
+    def record(outcome,stdout=b'',stderr=b''):
+        header=f'\n[{datetime.now(timezone.utc).isoformat()}] {outcome}\nCommand: {json.dumps(command)}\nCwd: {cwd or Path.cwd()}\n'
+        payload=(f'[binary stdout omitted: {len(stdout or b"")} bytes]'.encode()
+                 if binary else as_bytes(stdout))
+        for path in paths:
+            path.parent.mkdir(parents=True,exist_ok=True)
+            with path.open('ab') as stream:
+                stream.write(header.encode('utf-8')+b'--- stdout ---\n'+payload+b'\n--- stderr ---\n'+as_bytes(stderr)+b'\n')
+    def note(error):
+        if paths:
+            error.add_note('Command diagnostics saved to: '+', '.join(map(str,paths)))
+    try:
+        result=subprocess.run(command,cwd=cwd,capture_output=True,timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        record(f'TIMEOUT after {timeout} seconds',error.stdout,error.stderr)
+        note(error)
+        raise
+    except OSError as error:
+        record('LAUNCH FAILED',stderr=str(error))
+        note(error)
+        raise
+    record(f'EXIT {result.returncode}',result.stdout,result.stderr)
+    try:
+        result.check_returncode()
+    except subprocess.CalledProcessError as error:
+        note(error)
+        raise
+    return result.stdout if binary else result.stdout.decode('utf-8',errors='replace').strip()
 
 
 def git(source,*args,binary=False):
@@ -47,6 +78,7 @@ def export_commit(source,commit,destination):
 
 
 def main():
+    global COMMAND_LOG
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source',type=Path,help='Existing initialized LightGBM clone; exports pinned Git objects, not working-tree changes')
     parser.add_argument('--work-dir',type=Path,default=ROOT/'build')
@@ -60,6 +92,7 @@ def main():
     if work.exists():
         raise SystemExit('Use a new work directory; existing builds are never overwritten.')
     work.mkdir(parents=True)
+    COMMAND_LOG=work/'commands.log'
     cfg=json.loads((ROOT/'config/build.json').read_text())
     assert sha(ROOT/cfg['patch'])==cfg['patch_sha256']
     source=args.source.resolve() if args.source else work/'upstream'
@@ -93,11 +126,10 @@ def main():
                  f'-DCMAKE_CXX_COMPILER={Path(resolved["cxx"]).as_posix()}']
         command += [f'-D{k}={v}' for k,v in cfg['cmake_options'].items()]
         print(f'Configuring {variant}...',flush=True)
-        configure=call(command)
-        (work/variant/'configure.log').write_text(configure,encoding='utf-8')
+        call(command,log_path=work/variant/'configure.log')
         print(f'Compiling {variant} with {args.jobs} jobs...',flush=True)
-        compiled=call([resolved['cmake'],'--build',out,'--target','_lightgbm','--parallel',args.jobs])
-        (work/variant/'compile.log').write_text(compiled,encoding='utf-8')
+        call([resolved['cmake'],'--build',out,'--target','_lightgbm','--parallel',args.jobs],
+             log_path=work/variant/'compile.log')
         candidates=[p for p in src.glob('lib_lightgbm.*') if p.suffix in ('.dll','.so','.dylib')]
         assert len(candidates)==1,candidates
         library=candidates[0]

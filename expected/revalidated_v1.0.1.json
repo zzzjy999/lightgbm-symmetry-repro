@@ -1,0 +1,116 @@
+{
+  "release": "v1.0.1",
+  "checked_utc": "2026-10-09T08:15:55.975795+00:00",
+  "mode": "Revalidation of saved v1.0.0 outputs; no recompilation or model fitting",
+  "verifier_sha256": "c35480985d54cf997f22d86d8943b7971245e7d9535f459cd32de1f466d72262",
+  "build_script_sha256": "233d284f88e1e2ba7a7176d263b49663418ba0a439bcc9f7bfd55638b04819d6",
+  "input_sha256": {
+    "expected/rebuilt_single_tree.csv": "48fdc1699a170582082d226eaff89901ca413c45fa604a7f999c02ce2ef45f16",
+    "expected/rebuilt_verification.json": "1facceabcef00df17f917313be87077eee353daf83719d5adfdff9e386aa74ea"
+  },
+  "unittest": {
+    "status": "PASS",
+    "tests_run": 14,
+    "failures": 0,
+    "errors": 0
+  },
+  "verification": {
+    "status": "PASS",
+    "assertions": [
+      {
+        "check": "XOR has no profitable root in either library",
+        "passed": true
+      },
+      {
+        "check": "Baseline a=1 uses beta but omits geometry",
+        "passed": true
+      },
+      {
+        "check": "Patched a=1 restores two geometry splits and zero error",
+        "passed": true
+      },
+      {
+        "check": "IID perturbation repairs the zero-gate baseline",
+        "passed": true
+      },
+      {
+        "check": "Positive threshold retains the distinction between libraries",
+        "passed": true
+      },
+      {
+        "check": "Single-tree NRMSE agrees with archived results (absolute tolerance 1e-10)",
+        "passed": true
+      },
+      {
+        "check": "Continuous results contain each of the four conditions exactly once",
+        "passed": true
+      },
+      {
+        "check": "Continuous metrics are finite and nonnegative with integer split counts",
+        "passed": true
+      },
+      {
+        "check": "Continuous baseline/clean omits geometry",
+        "passed": true
+      },
+      {
+        "check": "Continuous baseline/iid restores geometry splits",
+        "passed": true
+      },
+      {
+        "check": "Continuous baseline/iid reduces validation NRMSE",
+        "passed": true
+      },
+      {
+        "check": "Continuous child_reeval/clean restores geometry splits",
+        "passed": true
+      },
+      {
+        "check": "Continuous child_reeval/clean reduces validation NRMSE",
+        "passed": true
+      },
+      {
+        "check": "Continuous child_reeval/iid restores geometry splits",
+        "passed": true
+      },
+      {
+        "check": "Continuous child_reeval/iid reduces validation NRMSE",
+        "passed": true
+      }
+    ],
+    "single_tree_fits": 80,
+    "continuous_fits": 4,
+    "max_archived_NRMSE_difference": 0.0,
+    "continuous_results": [
+      {
+        "variant": "baseline",
+        "condition": "clean",
+        "validation_NRMSE": 0.396412264643317,
+        "geometry_splits": 0,
+        "fit_seconds": 0.045980899943970144
+      },
+      {
+        "variant": "baseline",
+        "condition": "iid",
+        "validation_NRMSE": 0.10715547042231405,
+        "geometry_splits": 8160,
+        "fit_seconds": 0.35540879995096475
+      },
+      {
+        "variant": "child_reeval",
+        "condition": "clean",
+        "validation_NRMSE": 0.10806480639651729,
+        "geometry_splits": 8153,
+        "fit_seconds": 0.3713339000241831
+      },
+      {
+        "variant": "child_reeval",
+        "condition": "iid",
+        "validation_NRMSE": 0.10715547042231405,
+        "geometry_splits": 8160,
+        "fit_seconds": 0.3593668000539765
+      }
+    ],
+    "real_data_access": false
+  }
+}

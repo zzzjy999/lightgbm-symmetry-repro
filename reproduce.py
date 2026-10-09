@@ -4,6 +4,8 @@ import csv
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
+from numbers import Integral, Real
 import os
 from pathlib import Path
 import subprocess
@@ -12,6 +14,8 @@ import time
 
 ROOT=Path(__file__).resolve().parent
 CONDITIONS=('clean','iid','odd_rms_matched','iid_positive_gate')
+CONTINUOUS_KEYS=(('baseline','clean'),('baseline','iid'),
+                 ('child_reeval','clean'),('child_reeval','iid'))
 
 
 def sha(path):
@@ -98,8 +102,55 @@ def worker(args,build):
     print(f'{args.worker}: {len(rows)} single trees + {len(continuous)} continuous-data fits completed.',flush=True)
 
 
-def controller(args,build):
+def continuous_checks(rows):
+    """Check the full four-condition matrix, including the combined intervention."""
+    checks=[]
+    def check(name,value):
+        checks.append(dict(check=name,passed=bool(value)))
+    keys=[(r.get('variant'),r.get('condition')) for r in rows]
+    complete=len(keys)==len(CONTINUOUS_KEYS) and all(keys.count(k)==1 for k in CONTINUOUS_KEYS)
+    check('Continuous results contain each of the four conditions exactly once',complete)
+    def valid(row):
+        error=row.get('validation_NRMSE'); splits=row.get('geometry_splits')
+        return (isinstance(error,Real) and not isinstance(error,bool)
+                and math.isfinite(error) and error>=0
+                and isinstance(splits,Integral) and not isinstance(splits,bool) and splits>=0)
+    well_formed=complete and all(valid(r) for r in rows)
+    check('Continuous metrics are finite and nonnegative with integer split counts',well_formed)
+    c=dict(zip(keys,rows)) if complete else {}
+    check('Continuous baseline/clean omits geometry',well_formed and c['baseline','clean']['geometry_splits']==0)
+    for key in CONTINUOUS_KEYS[1:]:
+        label='/'.join(key)
+        check(f'Continuous {label} restores geometry splits',well_formed and c[key]['geometry_splits']>0)
+        check(f'Continuous {label} reduces validation NRMSE',
+              well_formed and c[key]['validation_NRMSE']<c['baseline','clean']['validation_NRMSE'])
+    return checks
+
+
+def verify_results(rows,continuous):
+    """Validate fresh or recorded results without fitting a model."""
     import numpy as np
+    assertions=[]
+    def check(name,value):
+        assertions.append(dict(check=name,passed=bool(value)))
+    clean=[r for r in rows if r['condition']=='clean']
+    check('XOR has no profitable root in either library',all(r['root_split_feature']=='none' and abs(r['NRMSE_clean']-1)<1e-12 for r in clean if r['a']==0))
+    check('Baseline a=1 uses beta but omits geometry',all(r['root_split_feature']=='beta' and r['geometry_splits']==0 and abs(r['NRMSE_clean']-1/np.sqrt(2))<1e-12 for r in clean if r['a']==1 and r['variant']=='baseline'))
+    check('Patched a=1 restores two geometry splits and zero error',all(r['geometry_splits']==2 and r['NRMSE_clean']<1e-12 for r in clean if r['a']==1 and r['variant']=='child_reeval'))
+    check('IID perturbation repairs the zero-gate baseline',all(r['geometry_splits']>0 and r['NRMSE_clean']<1e-3 for r in rows if r['variant']=='baseline' and r['condition']=='iid'))
+    check('Positive threshold retains the distinction between libraries',all((r['geometry_splits']==0 if r['variant']=='baseline' else r['geometry_splits']==2) for r in rows if r['a']==1 and r['condition']=='iid_positive_gate'))
+    with (ROOT/'expected/archived_single_tree.csv').open(encoding='utf-8-sig',newline='') as stream:
+        reference={(r['variant'],int(r['a']),int(r['seed']),r['condition']):r for r in csv.DictReader(stream)}
+    diffs=[abs(r['NRMSE_clean']-float(reference[(r['variant'],r['a'],r['seed'],r['condition'])]['NRMSE_clean'])) for r in rows]
+    check('Single-tree NRMSE agrees with archived results (absolute tolerance 1e-10)',max(diffs)<1e-10)
+    assertions.extend(continuous_checks(continuous))
+    return dict(status='PASS' if all(x['passed'] for x in assertions) else 'FAIL',
+                assertions=assertions,single_tree_fits=len(rows),continuous_fits=len(continuous),
+                max_archived_NRMSE_difference=max(diffs),continuous_results=continuous,
+                real_data_access=False)
+
+
+def controller(args,build):
     from datasets import export
     out=args.output.resolve()
     out.mkdir(parents=True,exist_ok=False)
@@ -129,27 +180,8 @@ def controller(args,build):
     for name,data in [('single_tree.csv',rows),('continuous.csv',continuous)]:
         with (out/name).open('w',newline='',encoding='utf-8') as stream:
             writer=csv.DictWriter(stream,fieldnames=list(data[0])); writer.writeheader(); writer.writerows(data)
-    assertions=[]
-    def check(name,value):
-        assertions.append(dict(check=name,passed=bool(value)))
-    clean=[r for r in rows if r['condition']=='clean']
-    check('XOR has no profitable root in either library',all(r['root_split_feature']=='none' and abs(r['NRMSE_clean']-1)<1e-12 for r in clean if r['a']==0))
-    check('Baseline a=1 uses beta but omits geometry',all(r['root_split_feature']=='beta' and r['geometry_splits']==0 and abs(r['NRMSE_clean']-1/np.sqrt(2))<1e-12 for r in clean if r['a']==1 and r['variant']=='baseline'))
-    check('Patched a=1 restores two geometry splits and zero error',all(r['geometry_splits']==2 and r['NRMSE_clean']<1e-12 for r in clean if r['a']==1 and r['variant']=='child_reeval'))
-    check('IID perturbation repairs the zero-gate baseline',all(r['geometry_splits']>0 and r['NRMSE_clean']<1e-3 for r in rows if r['variant']=='baseline' and r['condition']=='iid'))
-    check('Positive threshold retains the distinction between libraries',all((r['geometry_splits']==0 if r['variant']=='baseline' else r['geometry_splits']==2) for r in rows if r['a']==1 and r['condition']=='iid_positive_gate'))
-    with (ROOT/'expected/archived_single_tree.csv').open(encoding='utf-8-sig',newline='') as stream:
-        reference={(r['variant'],int(r['a']),int(r['seed']),r['condition']):r for r in csv.DictReader(stream)}
-    diffs=[abs(r['NRMSE_clean']-float(reference[(r['variant'],r['a'],r['seed'],r['condition'])]['NRMSE_clean'])) for r in rows]
-    check('Single-tree NRMSE agrees with archived results (absolute tolerance 1e-10)',max(diffs)<1e-10)
-    c={(r['variant'],r['condition']):r for r in continuous}
-    check('New continuous data reproduce geometry omission',c['baseline','clean']['geometry_splits']==0)
-    check('Both interventions recover continuous-data geometry splits',all(c[key]['geometry_splits']>0 for key in [('baseline','iid'),('child_reeval','clean')]))
-    check('Both interventions reduce error on independent synthetic geometries',all(c[key]['validation_NRMSE']<c['baseline','clean']['validation_NRMSE'] for key in [('baseline','iid'),('child_reeval','clean')]))
-    result=dict(status='PASS' if all(x['passed'] for x in assertions) else 'FAIL',
-                assertions=assertions,single_tree_fits=len(rows),continuous_fits=len(continuous),
-                max_archived_NRMSE_difference=max(diffs),continuous_results=continuous,
-                results_sha256=sha(out/'single_tree.csv'),real_data_access=False)
+    result=verify_results(rows,continuous)
+    result['results_sha256']=sha(out/'single_tree.csv')
     save(out/'verification.json',result)
     print(json.dumps(result,indent=2))
     if result['status']!='PASS':
